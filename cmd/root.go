@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -9,6 +10,10 @@ import (
 	"github.com/kamil-koziol/restree/pkg/http2curl"
 	flag "github.com/spf13/pflag"
 )
+
+type Flags struct {
+	Output string
+}
 
 func main() {
 	os.Exit(run())
@@ -23,6 +28,9 @@ func run() int {
 		flag.PrintDefaults()
 	}
 	flag.CommandLine.SortFlags = false
+
+	flags := Flags{}
+	flag.StringVarP(&flags.Output, "output", "o", "-", "Output file, use '-' for stdout")
 
 	flag.Parse()
 
@@ -58,7 +66,21 @@ func run() int {
 		return 1
 	}
 
-	fmt.Printf("%s", curl)
+	// Determine the output outWriter
+	var outWriter io.Writer
+	if flags.Output == "-" {
+		outWriter = os.Stdout
+	} else {
+		file, err := os.Create(flags.Output)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to create output file: %v\n", err)
+			return 1
+		}
+		defer file.Close()
+		outWriter = file
+	}
+
+	fmt.Fprintln(outWriter, curl)
 
 	return 0
 }
