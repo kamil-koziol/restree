@@ -13,6 +13,7 @@ import (
 
 type Flags struct {
 	Output string
+	Body   string
 }
 
 func main() {
@@ -31,6 +32,7 @@ func run() int {
 
 	flags := Flags{}
 	flag.StringVarP(&flags.Output, "output", "o", "-", "Output file, use '-' for stdout")
+	flag.StringVarP(&flags.Body, "body", "b", "", "Specify the input for the final .http body. Use a file path to write to a file, or '-' to use stdin")
 
 	flag.Parse()
 
@@ -58,6 +60,29 @@ func run() int {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
+	}
+
+	var bodyReader io.Reader
+	if flags.Body == "-" {
+		bodyReader = os.Stdin
+	} else if flags.Body != "" {
+		file, err := os.Open(flags.Body)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to open file: %s", err)
+			return 1
+		}
+		defer file.Close()
+		bodyReader = file
+	}
+
+	if bodyReader != nil {
+		// overwrite the body
+		b, err := io.ReadAll(bodyReader)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to read: %s", err)
+			return 1
+		}
+		httpFile.Body = string(b)
 	}
 
 	curl, err := http2curl.ToCURL(*httpFile)
