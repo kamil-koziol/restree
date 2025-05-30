@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"fmt"
@@ -16,11 +16,7 @@ type Flags struct {
 	Body   string
 }
 
-func main() {
-	os.Exit(run())
-}
-
-func run() int {
+func Run() int {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [flags] <filename>\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "\nPositional arguments:\n")
