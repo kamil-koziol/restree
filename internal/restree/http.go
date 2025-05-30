@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -13,17 +14,17 @@ import (
 	"github.com/kamil-koziol/restree/pkg/httpparser"
 )
 
-const TemplateFileName = "template.http"
+const HeadersFileName = "_headers.http"
 
-func LoadTemplateFromFile(path string) (*httpparser.HTTPRequest, error) {
+func LoadHTTPRequest(path string) (*httpparser.HTTPRequest, error) {
 	template, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read %s: %s\n", path, err)
+		return nil, fmt.Errorf("Failed to read request %s: %s\n", path, err)
 	}
-	return LoadTemplate(bytes.NewBuffer(template))
+	return HandleHTTPRequest(bytes.NewBuffer(template))
 }
 
-func LoadTemplate(data io.Reader) (*httpparser.HTTPRequest, error) {
+func HandleHTTPRequest(data io.Reader) (*httpparser.HTTPRequest, error) {
 	// parse it
 	template, err := io.ReadAll(data)
 	if err != nil {
@@ -37,7 +38,34 @@ func LoadTemplate(data io.Reader) (*httpparser.HTTPRequest, error) {
 	}
 
 	// now we can parse it as .http
-	parsed, err := httpparser.ParsePartial(bytes.NewBufferString(content))
+	parsed, err := httpparser.Parse(bytes.NewBufferString(content))
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse %s: \n%s\n", err, content)
+	}
+
+	return parsed, nil
+}
+
+func LoadHTTPHeaders(path string) (httpparser.HTTPHeaders, error) {
+	template, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to read headers %s: %s\n", path, err)
+	}
+	return HandleHTTPHeaders(bytes.NewBuffer(template))
+}
+
+func HandleHTTPHeaders(data io.Reader) (httpparser.HTTPHeaders, error) {
+	b, err := io.ReadAll(data)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read from data: %s", err)
+	}
+
+	content, err := fillPlaceholders(string(b), envutil.All())
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fill template: %s\n", err)
+	}
+
+	parsed, err := httpparser.ParseHeadersFile(bytes.NewBufferString(content))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse %s: \n%s\n", err, content)
 	}
@@ -55,9 +83,7 @@ func RecursiveRead(from string, to string) (*httpparser.HTTPRequest, error) {
 
 	dirs := traversal[:len(traversal)-1]
 
-	builder := &httpparser.HTTPRequest{
-		Headers: make(map[string]string),
-	}
+	headers := httpparser.HTTPHeaders{}
 
 	currentPath := from
 	for _, dir := range dirs {
@@ -70,26 +96,25 @@ func RecursiveRead(from string, to string) (*httpparser.HTTPRequest, error) {
 
 		for _, entry := range entries {
 			name := entry.Name()
-			if name == TemplateFileName {
-				templatePath := filepath.Join(currentPath, name)
-				parsed, err := LoadTemplateFromFile(templatePath)
+			if name == HeadersFileName {
+				headersPath := filepath.Join(currentPath, name)
+				currentHeaders, err := LoadHTTPHeaders(headersPath)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to load template %s: %s\n", templatePath, err)
+					return nil, fmt.Errorf("Failed to load template %s: %s\n", headersPath, err)
 				}
 
-				merged := httpparser.Merge(*builder, *parsed)
-				builder = &merged
+				maps.Copy(headers, currentHeaders)
 			}
 		}
 	}
 
-	httpFile, err := LoadTemplateFromFile(to)
+	httpFile, err := LoadHTTPRequest(to)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load file %s: %s\n", httpFile, err)
+		return nil, fmt.Errorf("Failed to load file %s: %s\n", to, err)
 	}
 
-	final := httpparser.Merge(*builder, *httpFile)
-	return &final, nil
+	maps.Copy(httpFile.Headers, headers)
+	return httpFile, nil
 }
 
 func fillPlaceholders(content string, values map[string]string) (string, error) {
