@@ -8,7 +8,6 @@ import (
 
 	"flag"
 	"github.com/kamil-koziol/restree/internal/restree"
-	"github.com/kamil-koziol/restree/pkg/http2curl"
 )
 
 type Flags struct {
@@ -80,12 +79,6 @@ func Run() int {
 		httpFile.Body = string(b)
 	}
 
-	curl, err := http2curl.ToCURL(*httpFile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to convert .http to curl: %s", err)
-		return 1
-	}
-
 	// Determine the output outWriter
 	var outWriter io.Writer
 	if flags.Output == "-" {
@@ -100,7 +93,7 @@ func Run() int {
 		outWriter = file
 	}
 
-	fmt.Fprintln(outWriter, curl)
+	fmt.Fprintln(outWriter, httpFile.String())
 
 	return 0
 }
