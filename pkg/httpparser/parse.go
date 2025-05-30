@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"maps"
 	"net/url"
 	"strings"
 )
@@ -12,24 +11,26 @@ import (
 type HTTPRequest struct {
 	Method  string
 	URL     *url.URL
-	Headers map[string]string
+	Headers HTTPHeaders
 	Body    string
 }
 
-// ParsePartial partially parses .http file (can omit request line)
+type HTTPHeaders map[string]string
+
+// Parse parses .http file
 // .http file structure
 //
-// <HTTP_METHOD> <URL> <- This is optional
+// <HTTP_METHOD> <URL>
 // <Header-Name>: <Header-Value>
 // <Header-Name>: <Header-Value>
 // ...
 //
 // <optional body in JSON, plain text, or form format>
-func ParsePartial(body io.Reader) (*HTTPRequest, error) {
+func Parse(body io.Reader) (*HTTPRequest, error) {
 	scanner := bufio.NewScanner(body)
 
 	req := &HTTPRequest{
-		Headers: make(map[string]string),
+		Headers: make(HTTPHeaders),
 	}
 
 	state := "start"
@@ -37,33 +38,36 @@ func ParsePartial(body io.Reader) (*HTTPRequest, error) {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-	retry:
 		switch state {
 		case "start":
+			// skip first empty lines
 			if strings.TrimSpace(line) == "" {
 				continue
 			}
 
 			parts := strings.Fields(line)
-			isRequestLine := len(parts) == 2 && isHTTPMethod(parts[0])
-			if isRequestLine {
-				req.Method = parts[0]
-				u, err := url.Parse(parts[1])
-				if err != nil {
-					return nil, fmt.Errorf("invalid url %s in %s", parts[1], line)
-				}
-				req.URL = u
-				state = "headers"
-			} else {
-				// Not a request line, reprocess as header
-				state = "headers"
-				goto retry
+
+			if !isHTTPMethod(parts[0]) {
+				return nil, fmt.Errorf("invalid HTTP method: %s", req.Method)
 			}
+			req.Method = parts[0]
+
+			u, err := url.Parse(parts[1])
+			if err != nil {
+				return nil, fmt.Errorf("invalid url %s in %s", parts[1], line)
+			}
+			req.URL = u
+
+			state = "headersStart"
+		case "headersStart":
+			if strings.TrimSpace(line) != "" {
+				return nil, fmt.Errorf("has to be empty headers start")
+			}
+
+			state = "headers"
 		case "headers":
 			if strings.TrimSpace(line) == "" {
-				if len(req.Headers) != 0 {
-					state = "body"
-				}
+				state = "body"
 				continue
 			}
 
@@ -89,6 +93,36 @@ func ParsePartial(body io.Reader) (*HTTPRequest, error) {
 	return req, nil
 }
 
+// ParseHeadersFile parses .http file that contains only headers
+// .http file structure (headers only)
+//
+// <Header-Name>: <Header-Value>
+// <Header-Name>: <Header-Value>
+// ...
+func ParseHeadersFile(body io.Reader) (HTTPHeaders, error) {
+	scanner := bufio.NewScanner(body)
+
+	headers := make(HTTPHeaders)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.TrimSpace(line) == "" {
+			return headers, nil
+		}
+
+		colonIdx := strings.Index(line, ":")
+		if colonIdx == -1 {
+			return nil, fmt.Errorf("invalid header: %q", line)
+		}
+
+		key := strings.TrimSpace(line[:colonIdx])
+		value := strings.TrimSpace(line[colonIdx+1:])
+		headers[key] = value
+	}
+
+	return headers, nil
+}
+
 func isHTTPMethod(m string) bool {
 	switch strings.ToUpper(m) {
 	case "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD":
@@ -96,33 +130,4 @@ func isHTTPMethod(m string) bool {
 	default:
 		return false
 	}
-}
-
-// Merge merges two http requests and returns new one
-func Merge(dst HTTPRequest, src HTTPRequest) HTTPRequest {
-	req := HTTPRequest{
-		Method:  dst.Method,
-		URL:     nil,
-		Headers: maps.Clone(dst.Headers),
-		Body:    dst.Body,
-	}
-	if dst.URL != nil {
-		req.URL, _ = url.Parse(dst.URL.String())
-	}
-
-	if src.Body != "" {
-		req.Body = src.Body
-	}
-
-	if src.Method != "" {
-		req.Method = src.Method
-	}
-
-	if src.URL != nil {
-		req.URL, _ = url.Parse(src.URL.String())
-	}
-
-	maps.Copy(req.Headers, src.Headers)
-
-	return req
 }
