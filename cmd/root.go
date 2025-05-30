@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"flag"
 	"github.com/kamil-koziol/restree/internal/restree"
 	"github.com/kamil-koziol/restree/pkg/http2curl"
-	flag "github.com/spf13/pflag"
 )
 
 type Flags struct {
@@ -24,11 +24,10 @@ func Run() int {
 		fmt.Fprintf(os.Stderr, "\nFlags:\n")
 		flag.PrintDefaults()
 	}
-	flag.CommandLine.SortFlags = false
 
 	flags := Flags{}
-	flag.StringVarP(&flags.Output, "output", "o", "-", "Output file, use '-' for stdout")
-	flag.StringVarP(&flags.Body, "body", "b", "", "Specify the input for the final .http body. Use a file path to write to a file, or '-' to use stdin")
+	flag.StringVar(&flags.Output, "o", "-", "Output file, use '-' for stdout")
+	flag.StringVar(&flags.Body, "b", "", "Specify the input for the final .http body. Use a file path to write to a file, or '-' to use stdin")
 
 	flag.Parse()
 
