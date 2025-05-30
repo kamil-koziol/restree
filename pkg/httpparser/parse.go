@@ -59,9 +59,12 @@ func Parse(body io.Reader) (*HTTPRequest, error) {
 
 	state := "start"
 	bodyLines := []string{}
+	scannedLines := 0
 
 	for scanner.Scan() {
 		line := scanner.Text()
+		scannedLines += 1
+
 		switch state {
 		case "start":
 			// skip first empty lines
@@ -108,6 +111,9 @@ func Parse(body io.Reader) (*HTTPRequest, error) {
 		}
 	}
 
+	if scannedLines == 0 {
+		return nil, fmt.Errorf("cannot parse empty")
+	}
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
