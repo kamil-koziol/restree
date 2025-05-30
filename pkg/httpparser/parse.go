@@ -15,6 +15,30 @@ type HTTPRequest struct {
 	Body    string
 }
 
+func (req *HTTPRequest) String() string {
+	s := ""
+
+	// Request line
+	s += fmt.Sprintf("%s %s\n", req.Method, req.URL.String())
+
+	if len(req.Headers) == 0 && req.Body == "" {
+		return s
+	}
+
+	// Headers
+	s += "\n"
+	for header, value := range req.Headers {
+		s += fmt.Sprintf("%s: %s\n", header, value)
+	}
+
+	// Body
+	if req.Body != "" {
+		s += "\n"
+		s += fmt.Sprintf("%s", req.Body)
+	}
+	return s
+}
+
 type HTTPHeaders map[string]string
 
 // Parse parses .http file
