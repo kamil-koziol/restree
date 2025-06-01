@@ -35,7 +35,7 @@ func HandleHTTPRequest(data io.Reader) (*httpparser.HTTPRequest, error) {
 	}
 
 	// fill the placeholders
-	content, err := fillPlaceholders(string(template), envutil.All())
+	content, err := expandEnv(string(template), envutil.All())
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fill template: %s\n", err)
 	}
@@ -63,7 +63,7 @@ func HandleHTTPHeaders(data io.Reader) (httpparser.HTTPHeaders, error) {
 		return nil, fmt.Errorf("unable to read from data: %s", err)
 	}
 
-	content, err := fillPlaceholders(string(b), envutil.All())
+	content, err := expandEnv(string(b), envutil.All())
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fill template: %s\n", err)
 	}
@@ -199,7 +199,7 @@ func RecursiveRead(from string, to string) (*httpparser.HTTPRequest, error) {
 	return httpFile, nil
 }
 
-func fillPlaceholders(content string, values map[string]string) (string, error) {
+func expandEnv(content string, values map[string]string) (string, error) {
 	re := regexp.MustCompile(`\{\{(\w+)\}\}`)
 
 	var missingVariables []string
