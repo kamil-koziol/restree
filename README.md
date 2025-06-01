@@ -13,7 +13,7 @@ I was tired of using memory-hungry tools like Insomnia or Postman for simple API
 go install https://github.com/kamil-koziol/restree@latest
 ```
 
-## Guide
+## Simple Guide
 
 Given the following directory structure:
 
@@ -66,3 +66,31 @@ Content-Type: application/json
 User-Header: cooluser
 ```
 
+### Running scripts before request
+
+You can define `_before.sh` file that will be ran before the `_headers.http` files is handled.
+
+```
+.
+└── users
+    ├── _before.sh
+    ├── _headers.http
+    └── get.http
+```
+
+And it can be used to set the `env` variables:
+
+
+```bash
+# _before.sh
+
+echo "variable=gucamole"
+```
+
+That will be later used in header files and the final request itselft:
+
+```
+// ./_headers.http
+
+Header: {{variable}}
+```
