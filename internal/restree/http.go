@@ -24,7 +24,7 @@ const (
 func LoadHTTPRequest(path string) (*httpparser.HTTPRequest, error) {
 	template, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read request %s: %s\n", path, err)
+		return nil, fmt.Errorf("failed to read request %s: %s", path, err)
 	}
 	return HandleHTTPRequest(bytes.NewBuffer(template))
 }
@@ -39,13 +39,13 @@ func HandleHTTPRequest(data io.Reader) (*httpparser.HTTPRequest, error) {
 	// fill the placeholders
 	content, err := expandEnv(string(template), envutil.All())
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fill template: %s\n", err)
+		return nil, fmt.Errorf("failed to fill template: %s", err)
 	}
 
 	// now we can parse it as .http
 	parsed, err := httpparser.Parse(bytes.NewBufferString(content))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse %s: \n%s\n", err, content)
+		return nil, fmt.Errorf("failed to parse %s: \n%s", err, content)
 	}
 
 	return parsed, nil
@@ -54,7 +54,7 @@ func HandleHTTPRequest(data io.Reader) (*httpparser.HTTPRequest, error) {
 func LoadHTTPHeaders(path string) (httpparser.HTTPHeaders, error) {
 	template, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read headers %s: %s\n", path, err)
+		return nil, fmt.Errorf("failed to read headers %s: %s", path, err)
 	}
 	return HandleHTTPHeaders(bytes.NewBuffer(template))
 }
@@ -67,12 +67,12 @@ func HandleHTTPHeaders(data io.Reader) (httpparser.HTTPHeaders, error) {
 
 	content, err := expandEnv(string(b), envutil.All())
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fill template: %s\n", err)
+		return nil, fmt.Errorf("failed to fill template: %s", err)
 	}
 
 	parsed, err := httpparser.ParseHeadersFile(bytes.NewBufferString(content))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse %s: \n%s\n", err, content)
+		return nil, fmt.Errorf("failed to parse: %s", err)
 	}
 
 	return parsed, nil
@@ -154,7 +154,9 @@ func processDirectory(currentPath string) (httpparser.HTTPHeaders, error) {
 
 		// set the variables
 		for key, value := range exportedEnvs {
-			os.Setenv(key, value)
+			if err := os.Setenv(key, value); err != nil {
+				return nil, fmt.Errorf("unable to set env variable: %s", err)
+			}
 		}
 	}
 
@@ -162,7 +164,7 @@ func processDirectory(currentPath string) (httpparser.HTTPHeaders, error) {
 	if headersPath != "" {
 		headers, err = LoadHTTPHeaders(headersPath)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to load template %s: %s", headersPath, err)
+			return nil, fmt.Errorf("failed to load template %s: %s", headersPath, err)
 		}
 	}
 
@@ -194,7 +196,7 @@ func RecursiveRead(from string, to string) (*httpparser.HTTPRequest, error) {
 
 	httpFile, err := LoadHTTPRequest(to)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load file %s: %s\n", to, err)
+		return nil, fmt.Errorf("failed to load file %s: %s", to, err)
 	}
 
 	maps.Copy(httpFile.Headers, headers)
@@ -216,7 +218,7 @@ func expandEnv(content string, values map[string]string) (string, error) {
 	})
 
 	if len(missingVariables) != 0 {
-		return output, fmt.Errorf("missing variables: %s\n%s\n", missingVariables, output)
+		return output, fmt.Errorf("missing variables: %s", missingVariables)
 	}
 
 	return output, nil
