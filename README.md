@@ -13,6 +13,19 @@ I was tired of using memory-hungry tools like Insomnia or Postman for simple API
 go install https://github.com/kamil-koziol/restree@latest
 ```
 
+## Use case
+
+### Testing API endpoint
+
+You can easily test your API endpoints by using `restree` in combination with a simple tool like [http2curl](https://github.com/kamil-koziol/http2curl) to convert the `.http` file into curl command that you can later run in your shell
+
+
+**Example:**
+
+```sh
+restree users/get.http | http2curl | bash
+```
+
 ## Simple Guide
 
 Given the following directory structure:
