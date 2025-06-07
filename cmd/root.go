@@ -1,12 +1,12 @@
 package cmd
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
-	"flag"
 	"github.com/kamil-koziol/restree/internal/restree"
 )
 
