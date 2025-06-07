@@ -16,8 +16,10 @@ import (
 	"github.com/kamil-koziol/restree/pkg/httpparser"
 )
 
-const HeadersFileName = "_headers.http"
-const BeforeScriptFileName = "_before.sh"
+const (
+	HeadersFileName      = "_headers.http"
+	BeforeScriptFileName = "_before.sh"
+)
 
 func LoadHTTPRequest(path string) (*httpparser.HTTPRequest, error) {
 	template, err := os.ReadFile(path)

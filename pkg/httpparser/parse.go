@@ -34,7 +34,7 @@ func (req *HTTPRequest) String() string {
 	// Body
 	if req.Body != "" {
 		s += "\n"
-		s += fmt.Sprintf("%s", req.Body)
+		s += req.Body
 	}
 	return s
 }
