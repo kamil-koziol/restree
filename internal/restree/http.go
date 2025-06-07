@@ -37,7 +37,7 @@ func HandleHTTPRequest(data io.Reader) (*httpparser.HTTPRequest, error) {
 	}
 
 	// fill the placeholders
-	content, err := expandEnv(string(template), envutil.All())
+	content, err := expandVariables(string(template), envutil.All())
 	if err != nil {
 		return nil, fmt.Errorf("failed to fill template: %s", err)
 	}
@@ -65,7 +65,7 @@ func HandleHTTPHeaders(data io.Reader) (httpparser.HTTPHeaders, error) {
 		return nil, fmt.Errorf("unable to read from data: %s", err)
 	}
 
-	content, err := expandEnv(string(b), envutil.All())
+	content, err := expandVariables(string(b), envutil.All())
 	if err != nil {
 		return nil, fmt.Errorf("failed to fill template: %s", err)
 	}
@@ -203,13 +203,26 @@ func RecursiveRead(from string, to string) (*httpparser.HTTPRequest, error) {
 	return httpFile, nil
 }
 
-func expandEnv(content string, values map[string]string) (string, error) {
+// expandVariables replaces all occurrences of variables in the `{{var}}` format
+//
+// Each variable placeholder in the content (e.g., "{{name}}") is replaced with
+// the corresponding value from the `variables` map (e.g., variables["name"]).
+//
+// Example:
+//
+//	variables := map[string]string{
+//	    "test": "world",
+//	}
+//	content := "hello {{test}}"
+//	result, err := expandVariables(content, variables)
+//	// result == "hello world"
+func expandVariables(content string, variables map[string]string) (string, error) {
 	re := regexp.MustCompile(`\{\{(\w+)\}\}`)
 
 	var missingVariables []string
 	output := re.ReplaceAllStringFunc(content, func(match string) string {
 		key := re.FindStringSubmatch(match)[1]
-		if val, ok := values[key]; ok {
+		if val, ok := variables[key]; ok {
 			return val
 		}
 
