@@ -65,7 +65,7 @@ func Run() int {
 			fmt.Fprintf(os.Stderr, "Failed to open file: %s", err)
 			return 1
 		}
-		defer file.Close()
+		defer file.Close() // nolint:errcheck
 		bodyReader = file
 	}
 
@@ -89,11 +89,11 @@ func Run() int {
 			fmt.Fprintf(os.Stderr, "Failed to create output file: %v\n", err)
 			return 1
 		}
-		defer file.Close()
+		defer file.Close() // nolint:errcheck
 		outWriter = file
 	}
 
-	fmt.Fprintln(outWriter, httpFile.String())
+	_, _ = fmt.Fprintln(outWriter, httpFile.String())
 
 	return 0
 }
