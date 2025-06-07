@@ -45,7 +45,7 @@ func HandleHTTPRequest(data io.Reader) (*httpparser.HTTPRequest, error) {
 	// now we can parse it as .http
 	parsed, err := httpparser.Parse(bytes.NewBufferString(content))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse %s: \n%s", err, content)
+		return nil, fmt.Errorf("failed to parse: %s", err)
 	}
 
 	return parsed, nil
