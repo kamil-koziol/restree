@@ -1,0 +1,10 @@
+# yaml-language-server: https://golangci-lint.run/jsonschema/golangci.jsonschema.json
+
+version: "2"
+
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
