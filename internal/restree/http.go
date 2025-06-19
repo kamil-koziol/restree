@@ -87,7 +87,7 @@ func runScript(scriptPath string) (string, string, error) {
 
 	err := cmd.Run()
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("error happened during script execution: %s", err)
 	}
 
 	return stdoutBuf.String(), stderrBuf.String(), err
