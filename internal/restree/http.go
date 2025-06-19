@@ -79,7 +79,7 @@ func HandleHTTPHeaders(data io.Reader) (httpparser.HTTPHeaders, error) {
 }
 
 func runScript(scriptPath string) (string, string, error) {
-	cmd := exec.Command("bash", scriptPath) // Use "sh" if preferred
+	cmd := exec.Command("/bin/sh", scriptPath)
 
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
