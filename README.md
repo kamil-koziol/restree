@@ -9,6 +9,24 @@ I was tired of using memory-hungry tools like Insomnia or Postman for simple API
 
 ## Installation
 
+### Manual installation
+
+**Prerequisites**: `git`, `make`, `go`
+
+To manually install the program, follow these steps:
+
+```sh
+git clone https://github.com/kamil-koziol/restree
+cd restree
+make install
+```
+
+This will build the project and install the restree binary to your system.
+
+### Installation using Go
+
+Alternatively, you can install the `latest` version of restree directly using Go:
+
 ```sh
 go install https://github.com/kamil-koziol/restree@latest
 ```
