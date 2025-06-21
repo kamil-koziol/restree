@@ -11,8 +11,9 @@ import (
 )
 
 type Flags struct {
-	Output string
-	Body   string
+	Output    string
+	Body      string
+	Directory string
 }
 
 func Run() int {
@@ -27,6 +28,7 @@ func Run() int {
 	flags := Flags{}
 	flag.StringVar(&flags.Output, "o", "-", "Output file, use '-' for stdout")
 	flag.StringVar(&flags.Body, "b", "", "Specify the input for the final .http body. Use a file path to write to a file, or '-' to use stdin")
+	flag.StringVar(&flags.Directory, "D", "", "Specify the starting directory")
 
 	flag.Parse()
 
@@ -38,9 +40,21 @@ func Run() int {
 
 	filePath := flag.Arg(0)
 
-	cwd, err := os.Getwd()
+	dir := ""
+	if flags.Directory == "" {
+		var err error
+		dir, err = os.Getwd()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: could not get current working directory: %s\n", err)
+			return 1
+		}
+	} else {
+		dir = flags.Directory
+	}
+
+	dir, err := filepath.Abs(dir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: could not get current working directory: %s\n", err)
+		fmt.Fprintf(os.Stderr, "Error with file abs path: %s\n", err)
 		return 1
 	}
 
@@ -50,7 +64,7 @@ func Run() int {
 		return 1
 	}
 
-	httpFile, err := restree.RecursiveRead(cwd, filePath)
+	httpFile, err := restree.RecursiveRead(dir, filePath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
