@@ -23,6 +23,10 @@ make install
 
 This will build the project and install the restree binary to your system.
 
+### Installation using AUR
+
+You can install [restree-git](https://aur.archlinux.org/packages/restree-git) from the [Arch User Repository (AUR)](https://aur.archlinux.org).
+
 ### Installation using Go
 
 Alternatively, you can install the `latest` version of restree directly using Go:
