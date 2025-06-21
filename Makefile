@@ -1,6 +1,6 @@
 .PHONY: build
 build:
-	CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -o restree
+	CGOFLAGS="-buildvcs=false" CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -o restree
 
 .PHONY: clean
 clean:
