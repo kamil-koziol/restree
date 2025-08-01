@@ -11,9 +11,10 @@ import (
 )
 
 type Flags struct {
-	Output    string
-	Body      string
-	Directory string
+	Output              string
+	Body                string
+	Directory           string
+	ExpandBodyVariables bool
 }
 
 func Run() int {
@@ -29,6 +30,7 @@ func Run() int {
 	flag.StringVar(&flags.Output, "o", "-", "Output file, use '-' for stdout")
 	flag.StringVar(&flags.Body, "b", "", "Specify the input for the final .http body. Use a file path to write to a file, or '-' to use stdin")
 	flag.StringVar(&flags.Directory, "D", "", "Specify the starting directory")
+	flag.BoolVar(&flags.ExpandBodyVariables, "expand-body-variables", false, "Expand body variables")
 
 	flag.Parse()
 
@@ -64,7 +66,9 @@ func Run() int {
 		return 1
 	}
 
-	httpFile, err := restree.RecursiveRead(dir, filePath)
+	httpFile, err := restree.RecursiveRead(dir, filePath, restree.RecursiveReadOpts{
+		ExpandBodyVariables: flags.ExpandBodyVariables,
+	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
