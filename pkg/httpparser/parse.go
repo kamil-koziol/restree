@@ -4,13 +4,12 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"net/url"
 	"strings"
 )
 
 type HTTPRequest struct {
 	Method  string
-	URL     *url.URL
+	URL     string
 	Headers HTTPHeaders
 	Body    string
 }
@@ -19,7 +18,7 @@ func (req *HTTPRequest) String() string {
 	s := ""
 
 	// Request line
-	s += fmt.Sprintf("%s %s\n", req.Method, req.URL.String())
+	s += fmt.Sprintf("%s %s\n", req.Method, req.URL)
 
 	if len(req.Headers) == 0 && req.Body == "" {
 		return s
@@ -78,12 +77,7 @@ func Parse(body io.Reader) (*HTTPRequest, error) {
 				return nil, fmt.Errorf("invalid HTTP method: %s", req.Method)
 			}
 			req.Method = parts[0]
-
-			u, err := url.Parse(parts[1])
-			if err != nil {
-				return nil, fmt.Errorf("invalid url %s in %s", parts[1], line)
-			}
-			req.URL = u
+			req.URL = parts[1]
 
 			state = "headersStart"
 		case "headersStart":
