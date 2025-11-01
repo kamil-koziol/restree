@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/kamil-koziol/restree/internal/envutil"
-	"github.com/kamil-koziol/restree/internal/restree"
+	"github.com/kamil-koziol/restree/pkg/restree"
 )
 
 type BuildCmdFlags struct {
@@ -20,7 +20,7 @@ type BuildCmdFlags struct {
 }
 
 func Build(base []string, args []string) int {
-	buildCmd := flag.NewFlagSet("bar", flag.ExitOnError)
+	buildCmd := flag.NewFlagSet("build", flag.ExitOnError)
 	buildCmd.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [flags] <filename>\n", strings.Join(base, " "))
 		fmt.Fprintf(os.Stderr, "\nPositional arguments:\n")

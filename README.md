@@ -45,7 +45,7 @@ You can easily test your API endpoints by using `restree` in combination with a 
 **Example:**
 
 ```sh
-restree users/get.http | http2curl | bash
+restree build users/get.http | http2curl | bash
 ```
 
 ## Simple Guide
@@ -89,7 +89,7 @@ Then in your shell:
 export auth=$(echo "username:password" | base64)
 export host="http://localhost/users"
 
-restree users/get.http
+restree build users/get.http
 ```
 
 This produces:
