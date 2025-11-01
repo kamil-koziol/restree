@@ -66,6 +66,11 @@ func Parse(body io.Reader) (*HTTPRequest, error) {
 
 		switch state {
 		case "start":
+			// skip comments
+			if strings.HasPrefix(line, "#") {
+				continue
+			}
+
 			// skip first empty lines
 			if strings.TrimSpace(line) == "" {
 				continue
@@ -87,6 +92,11 @@ func Parse(body io.Reader) (*HTTPRequest, error) {
 
 			state = "headers"
 		case "headers":
+			// skip comments
+			if strings.HasPrefix(line, "#") {
+				continue
+			}
+
 			if strings.TrimSpace(line) == "" {
 				state = "body"
 				continue
@@ -130,6 +140,12 @@ func ParseHeadersFile(body io.Reader) (HTTPHeaders, error) {
 
 	for scanner.Scan() {
 		line := scanner.Text()
+
+		// skip comments
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+
 		if strings.TrimSpace(line) == "" {
 			return headers, nil
 		}

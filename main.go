@@ -18,6 +18,10 @@ var subcommands = map[string]Subcommand{
 		Run:         cmd.Build,
 		Description: "Recursively build http file",
 	},
+	"init": {
+		Run:         cmd.Init,
+		Description: "Simple restree starter",
+	},
 }
 
 func main() {
