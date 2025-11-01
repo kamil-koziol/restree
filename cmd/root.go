@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/kamil-koziol/restree/internal/envutil"
 	"github.com/kamil-koziol/restree/internal/restree"
 )
 
@@ -66,7 +67,7 @@ func Run() int {
 		return 1
 	}
 
-	httpFile, err := restree.RecursiveRead(dir, filePath, restree.RecursiveReadOpts{
+	httpFile, err := restree.RecursiveReadFS(os.DirFS(dir), dir, filePath, envutil.All(), restree.RecursiveReadOpts{
 		ExpandBodyVariables: flags.ExpandBodyVariables,
 	})
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/fs"
 	"maps"
 	"os"
 	"os/exec"
@@ -12,7 +13,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/kamil-koziol/restree/internal/envutil"
 	"github.com/kamil-koziol/restree/pkg/httpparser"
 )
 
@@ -21,15 +21,17 @@ const (
 	BeforeScriptFileName = "_before.sh"
 )
 
+type Variables map[string]string
+
 // ExpandHTTPRequest expands HTTP request with provided variables
-func ExpandHTTPRequest(req *httpparser.HTTPRequest, vars map[string]string, expandBodyVariables bool) (*httpparser.HTTPRequest, error) {
+func ExpandHTTPRequest(req *httpparser.HTTPRequest, variables Variables, expandBodyVariables bool) (*httpparser.HTTPRequest, error) {
 	result := &httpparser.HTTPRequest{
 		Method:  req.Method,
 		Headers: httpparser.HTTPHeaders{},
 	}
 
 	// Expand URL
-	u, err := expandVariables(req.URL, vars)
+	u, err := expandVariables(req.URL, variables)
 	if err != nil {
 		return nil, fmt.Errorf("unable to expand url: %w", err)
 	}
@@ -37,7 +39,7 @@ func ExpandHTTPRequest(req *httpparser.HTTPRequest, vars map[string]string, expa
 
 	// Expand headers
 	for h, v := range req.Headers {
-		eh, err := expandVariables(v, vars)
+		eh, err := expandVariables(v, variables)
 		if err != nil {
 			return nil, fmt.Errorf("unable to expand header: %s: %s: %w", h, v, err)
 		}
@@ -46,7 +48,7 @@ func ExpandHTTPRequest(req *httpparser.HTTPRequest, vars map[string]string, expa
 
 	// Expand body
 	if expandBodyVariables {
-		result.Body, err = expandVariables(req.Body, vars)
+		result.Body, err = expandVariables(req.Body, variables)
 		if err != nil {
 			return nil, fmt.Errorf("unable to expand body: %w", err)
 		}
@@ -58,13 +60,13 @@ func ExpandHTTPRequest(req *httpparser.HTTPRequest, vars map[string]string, expa
 }
 
 // ReadHTTPRequest reads [httpparser.HTTPRequest] from data and expands it with provided variables
-func ReadHTTPRequest(data io.Reader, vars map[string]string, expandBodyVariables bool) (*httpparser.HTTPRequest, error) {
+func ReadHTTPRequest(data io.Reader, variables Variables, expandBodyVariables bool) (*httpparser.HTTPRequest, error) {
 	httpRequest, err := httpparser.Parse(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse: %s", err)
 	}
 
-	expandedHTTPRequest, err := ExpandHTTPRequest(httpRequest, vars, expandBodyVariables)
+	expandedHTTPRequest, err := ExpandHTTPRequest(httpRequest, variables, expandBodyVariables)
 	if err != nil {
 		return nil, fmt.Errorf("unable to expand http request: %w", err)
 	}
@@ -76,21 +78,14 @@ func ReadHTTPRequest(data io.Reader, vars map[string]string, expandBodyVariables
 	return expandedHTTPRequest, nil
 }
 
-func LoadHTTPHeaders(path string) (httpparser.HTTPHeaders, error) {
-	template, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read headers %s: %s", path, err)
-	}
-	return HandleHTTPHeaders(bytes.NewBuffer(template))
-}
-
-func HandleHTTPHeaders(data io.Reader) (httpparser.HTTPHeaders, error) {
+// ReadHTTPRequest reads [httpparser.HTTPHeaders] from data and expands it with provided variables
+func ReadHTTPHeaders(data io.Reader, variables Variables) (httpparser.HTTPHeaders, error) {
 	b, err := io.ReadAll(data)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read from data: %s", err)
 	}
 
-	content, err := expandVariables(string(b), envutil.All())
+	content, err := expandVariables(string(b), variables)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fill template: %s", err)
 	}
@@ -103,24 +98,49 @@ func HandleHTTPHeaders(data io.Reader) (httpparser.HTTPHeaders, error) {
 	return parsed, nil
 }
 
-func runScript(scriptPath string) (string, string, error) {
-	cmd := exec.Command("/bin/sh", scriptPath)
+func runScriptFromFS(fsys fs.FS, scriptPath string) (string, string, error) {
+	file, err := fsys.Open(scriptPath)
+	if err != nil {
+		return "", "", fmt.Errorf("cannot open script: %w", err)
+	}
+	defer file.Close() //nolint:errcheck
 
+	scriptData, err := io.ReadAll(file)
+	if err != nil {
+		return "", "", fmt.Errorf("cannot read script: %w", err)
+	}
+
+	tmpFile, err := os.CreateTemp("", "script-*.sh")
+	if err != nil {
+		return "", "", fmt.Errorf("cannot create temp file: %w", err)
+	}
+	defer os.Remove(tmpFile.Name()) //nolint:errcheck
+	defer tmpFile.Close()           //nolint:errcheck
+
+	if _, err := tmpFile.Write(scriptData); err != nil {
+		return "", "", fmt.Errorf("cannot write temp script: %w", err)
+	}
+
+	if err := os.Chmod(tmpFile.Name(), 0o700); err != nil {
+		return "", "", fmt.Errorf("cannot chmod temp script: %w", err)
+	}
+
+	cmd := exec.Command("/bin/sh", tmpFile.Name())
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf
 
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
-		return "", "", fmt.Errorf("error happened during script execution: %s", err)
+		return "", "", fmt.Errorf("script execution error: %w", err)
 	}
 
-	return stdoutBuf.String(), stderrBuf.String(), err
+	return stdoutBuf.String(), stderrBuf.String(), nil
 }
 
 // parseScriptEnvOutput parses the output as env
-func parseScriptEnvOutput(out string) (map[string]string, error) {
-	envMap := make(map[string]string)
+func parseScriptEnvOutput(out string) (Variables, error) {
+	envMap := make(Variables)
 	scanner := bufio.NewScanner(bytes.NewBufferString(out))
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -137,15 +157,13 @@ func parseScriptEnvOutput(out string) (map[string]string, error) {
 	return envMap, nil
 }
 
-func processDirectory(currentPath string) (httpparser.HTTPHeaders, error) {
-	entries, err := os.ReadDir(currentPath)
+func processDirectoryFS(fsys fs.FS, currentPath string, variables Variables) (httpparser.HTTPHeaders, error) {
+	entries, err := fs.ReadDir(fsys, currentPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read dir: %s", currentPath)
+		return nil, fmt.Errorf("unable to read dir %s: %w", currentPath, err)
 	}
 
-	headers := httpparser.HTTPHeaders{}
-
-	var headersPath, beforePath string
+	var headersFile, beforeScriptFile fs.DirEntry
 
 	// find the files in directory
 	for _, entry := range entries {
@@ -153,22 +171,18 @@ func processDirectory(currentPath string) (httpparser.HTTPHeaders, error) {
 			continue
 		}
 
-		name := entry.Name()
-		entryPath := filepath.Join(currentPath, name)
-
 		switch entry.Name() {
 		case HeadersFileName:
-			headersPath = entryPath
+			headersFile = entry
 		case BeforeScriptFileName:
-			beforePath = entryPath
+			beforeScriptFile = entry
 		}
-
 	}
 
 	// run the before script first
 	// TODO: pass the current headers to the scripts as a variable
-	if beforePath != "" {
-		stdout, stderr, err := runScript(beforePath)
+	if beforeScriptFile != nil {
+		stdout, stderr, err := runScriptFromFS(fsys, filepath.Join(currentPath, beforeScriptFile.Name()))
 		if err != nil {
 			return nil, fmt.Errorf("failed to execute before script: %s\n%s", err, stderr)
 		}
@@ -178,16 +192,20 @@ func processDirectory(currentPath string) (httpparser.HTTPHeaders, error) {
 		}
 
 		// set the variables
-		for key, value := range exportedEnvs {
-			if err := os.Setenv(key, value); err != nil {
-				return nil, fmt.Errorf("unable to set env variable: %s", err)
-			}
-		}
+		maps.Copy(variables, exportedEnvs)
 	}
 
 	// run parse the headers
-	if headersPath != "" {
-		headers, err = LoadHTTPHeaders(headersPath)
+	headers := httpparser.HTTPHeaders{}
+	if headersFile != nil {
+		headersPath := filepath.Join(currentPath, headersFile.Name())
+		f, err := fsys.Open(headersPath)
+		if err != nil {
+			return nil, fmt.Errorf("unable to open headers file: %w", err)
+		}
+		defer f.Close() //nolint:errcheck
+
+		headers, err = ReadHTTPHeaders(f, variables)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load template %s: %s", headersPath, err)
 		}
@@ -200,7 +218,7 @@ type RecursiveReadOpts struct {
 	ExpandBodyVariables bool
 }
 
-func RecursiveRead(from string, to string, opts RecursiveReadOpts) (*httpparser.HTTPRequest, error) {
+func RecursiveReadFS(fsys fs.FS, from string, to string, variables Variables, opts RecursiveReadOpts) (*httpparser.HTTPRequest, error) {
 	traversalStr, found := strings.CutPrefix(to, from)
 	if !found {
 		return nil, fmt.Errorf("%s must be under %s", to, from)
@@ -212,10 +230,10 @@ func RecursiveRead(from string, to string, opts RecursiveReadOpts) (*httpparser.
 
 	headers := httpparser.HTTPHeaders{}
 
-	currentPath := from
+	currentPath := "."
 	for _, dir := range dirs {
 		currentPath = filepath.Join(currentPath, dir)
-		directoryHeaders, err := processDirectory(currentPath)
+		directoryHeaders, err := processDirectoryFS(fsys, currentPath, variables)
 		if err != nil {
 			return nil, fmt.Errorf("unable to process dir: %s", err)
 		}
@@ -228,7 +246,7 @@ func RecursiveRead(from string, to string, opts RecursiveReadOpts) (*httpparser.
 	}
 	defer f.Close() //nolint:errcheck
 
-	httpFile, err := ReadHTTPRequest(f, envutil.All(), opts.ExpandBodyVariables)
+	httpFile, err := ReadHTTPRequest(f, variables, opts.ExpandBodyVariables)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load file %s: %s", to, err)
 	}
@@ -244,13 +262,13 @@ func RecursiveRead(from string, to string, opts RecursiveReadOpts) (*httpparser.
 //
 // Example:
 //
-//	variables := map[string]string{
+//	variables := Variables{
 //	    "test": "world",
 //	}
 //	content := "hello {{test}}"
 //	result, err := expandVariables(content, variables)
 //	// result == "hello world"
-func expandVariables(content string, variables map[string]string) (string, error) {
+func expandVariables(content string, variables Variables) (string, error) {
 	re := regexp.MustCompile(`\{\{(\w+)\}\}`)
 
 	var missingVariables []string
