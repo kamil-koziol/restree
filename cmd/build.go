@@ -6,42 +6,47 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/kamil-koziol/restree/internal/envutil"
 	"github.com/kamil-koziol/restree/internal/restree"
 )
 
-type Flags struct {
+type BuildCmdFlags struct {
 	Output              string
 	Body                string
 	Directory           string
 	ExpandBodyVariables bool
 }
 
-func Run() int {
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [flags] <filename>\n", os.Args[0])
+func Build(base []string, args []string) int {
+	buildCmd := flag.NewFlagSet("bar", flag.ExitOnError)
+	buildCmd.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s [flags] <filename>\n", strings.Join(base, " "))
 		fmt.Fprintf(os.Stderr, "\nPositional arguments:\n")
 		fmt.Fprintf(os.Stderr, "  filename\tPath to the .http file\n")
 		fmt.Fprintf(os.Stderr, "\nFlags:\n")
-		flag.PrintDefaults()
+		buildCmd.PrintDefaults()
 	}
 
-	flags := Flags{}
-	flag.StringVar(&flags.Output, "o", "-", "Output file, use '-' for stdout")
-	flag.StringVar(&flags.Body, "b", "", "Specify the input for the final .http body. Use a file path to write to a file, or '-' to use stdin")
-	flag.StringVar(&flags.Directory, "D", "", "Specify the starting directory")
-	flag.BoolVar(&flags.ExpandBodyVariables, "expand-body-variables", false, "Expand body variables")
+	flags := BuildCmdFlags{}
+	buildCmd.StringVar(&flags.Output, "o", "-", "Output file, use '-' for stdout")
+	buildCmd.StringVar(&flags.Body, "b", "", "Specify the input for the final .http body. Use a file path to write to a file, or '-' to use stdin")
+	buildCmd.StringVar(&flags.Directory, "D", "", "Specify the starting directory")
+	buildCmd.BoolVar(&flags.ExpandBodyVariables, "expand-body-variables", false, "Expand body variables")
 
-	flag.Parse()
+	if err := buildCmd.Parse(args); err != nil {
+		fmt.Fprintln(os.Stderr, "unable to parse args")
+		return 1
+	}
 
-	if flag.NArg() < 1 {
+	if buildCmd.NArg() < 1 {
 		fmt.Fprintln(os.Stderr, "Error: missing required <file> argument.")
 		flag.Usage()
 		return 1
 	}
 
-	filePath := flag.Arg(0)
+	filePath := buildCmd.Arg(0)
 
 	dir := ""
 	if flags.Directory == "" {
