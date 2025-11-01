@@ -80,22 +80,22 @@ func ReadHTTPRequest(data io.Reader, variables Variables, expandBodyVariables bo
 
 // ReadHTTPRequest reads [httpparser.HTTPHeaders] from data and expands it with provided variables
 func ReadHTTPHeaders(data io.Reader, variables Variables) (httpparser.HTTPHeaders, error) {
-	b, err := io.ReadAll(data)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read from data: %s", err)
-	}
-
-	content, err := expandVariables(string(b), variables)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fill template: %s", err)
-	}
-
-	parsed, err := httpparser.ParseHeadersFile(bytes.NewBufferString(content))
+	parsed, err := httpparser.ParseHeadersFile(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse: %s", err)
 	}
 
-	return parsed, nil
+	// Expand headers
+	result := httpparser.HTTPHeaders{}
+	for h, v := range parsed {
+		eh, err := expandVariables(v, variables)
+		if err != nil {
+			return nil, fmt.Errorf("unable to expand header: %s: %s: %w", h, v, err)
+		}
+		result[h] = eh
+	}
+
+	return result, nil
 }
 
 func runScriptFromFS(fsys fs.FS, scriptPath string) (string, string, error) {
