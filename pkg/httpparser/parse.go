@@ -25,7 +25,6 @@ func (req *HTTPRequest) String() string {
 	}
 
 	// Headers
-	s += "\n"
 	for header, value := range req.Headers {
 		s += fmt.Sprintf("%s: %s\n", header, value)
 	}
@@ -83,12 +82,6 @@ func Parse(body io.Reader) (*HTTPRequest, error) {
 			}
 			req.Method = parts[0]
 			req.URL = parts[1]
-
-			state = "headersStart"
-		case "headersStart":
-			if strings.TrimSpace(line) != "" {
-				return nil, fmt.Errorf("has to be empty headers start")
-			}
 
 			state = "headers"
 		case "headers":

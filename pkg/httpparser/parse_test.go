@@ -29,15 +29,15 @@ func validContent() string {
 }
 
 func validHTTPFile() string {
-	return validRequestLine() + "\n" + validHeaders() + "\n" + validContent()
+	return validRequestLine() + validHeaders() + "\n" + validContent()
 }
 
 func validHTTPFileContentOnly() string {
-	return validRequestLine() + "\n\n" + validContent()
+	return validRequestLine() + "\n" + validContent()
 }
 
 func validHTTPFileHeadersOnly() string {
-	return validRequestLine() + "\n" + validHeaders()
+	return validRequestLine() + validHeaders()
 }
 
 // Test Parse

@@ -95,7 +95,6 @@ restree build users/get.http
 This produces:
 ```
 GET http://localhost/users
-
 Authorization: Basic
 Content-Type: application/json
 User-Header: cooluser
