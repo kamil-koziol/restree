@@ -13,7 +13,7 @@ import (
 )
 
 type BuildCmdFlags struct {
-	Output              string
+	Output              io.WriteCloser
 	Body                string
 	Directory           string
 	ExpandBodyVariables bool
@@ -29,8 +29,16 @@ func Build(base []string, args []string) int {
 		buildCmd.PrintDefaults()
 	}
 
-	flags := BuildCmdFlags{}
-	buildCmd.StringVar(&flags.Output, "o", "-", "Output file, use '-' for stdout")
+	flags := BuildCmdFlags{
+		Output: os.Stdout,
+	}
+	defer flags.Output.Close() //nolint
+
+	buildCmd.Func("o", "Output file", func(s string) (err error) {
+		flags.Output, err = ResolveOutput(s)
+		return err
+	})
+
 	buildCmd.StringVar(&flags.Body, "b", "", "Specify the input for the final .http body. Use a file path to write to a file, or '-' to use stdin")
 	buildCmd.StringVar(&flags.Directory, "D", "", "Specify the starting directory")
 	buildCmd.BoolVar(&flags.ExpandBodyVariables, "expand-body-variables", false, "Expand body variables")
@@ -103,21 +111,7 @@ func Build(base []string, args []string) int {
 		httpFile.Body = string(b)
 	}
 
-	// Determine the output outWriter
-	var outWriter io.Writer
-	if flags.Output == "-" {
-		outWriter = os.Stdout
-	} else {
-		file, err := os.Create(flags.Output)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to create output file: %v\n", err)
-			return 1
-		}
-		defer file.Close() // nolint:errcheck
-		outWriter = file
-	}
-
-	_, _ = fmt.Fprintln(outWriter, httpFile.String())
+	_, _ = fmt.Fprintln(flags.Output, httpFile.String())
 
 	return 0
 }
