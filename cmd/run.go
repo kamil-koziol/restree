@@ -20,6 +20,7 @@ type RunCmdFlags struct {
 	Directory           string
 	ExpandBodyVariables bool
 	InsecureSkipVerify  bool
+	Verbose             bool
 }
 
 func Run(base []string, args []string) int {
@@ -45,6 +46,7 @@ func Run(base []string, args []string) int {
 	runCmd.StringVar(&flags.Directory, "D", "", "Specify the starting directory")
 	runCmd.BoolVar(&flags.ExpandBodyVariables, "expand-body-variables", false, "Expand body variables")
 	runCmd.BoolVar(&flags.InsecureSkipVerify, "k", false, "Allow insecure server connections")
+	runCmd.BoolVar(&flags.Verbose, "v", false, "Increase the verbosity")
 
 	if err := runCmd.Parse(args); err != nil {
 		fmt.Fprintln(os.Stderr, "unable to parse args")
@@ -114,6 +116,14 @@ func Run(base []string, args []string) int {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error occured during request: %s", err)
 		return 1
+	}
+
+	_, _ = fmt.Fprintf(os.Stderr, "%s %s %s\n", resp.Status, resp.Request.Method, resp.Request.URL.String())
+
+	if flags.Verbose {
+		for k, v := range resp.Header {
+			_, _ = fmt.Fprintf(os.Stderr, "%s: %s\n", k, strings.Join(v, ","))
+		}
 	}
 
 	b, err := io.ReadAll(resp.Body)
