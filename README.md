@@ -39,13 +39,12 @@ go install https://github.com/kamil-koziol/restree@latest
 
 ### Testing API endpoint
 
-You can easily test your API endpoints by using `restree` in combination with a simple tool like [http2curl](https://github.com/kamil-koziol/http2curl) to convert the `.http` file into curl command that you can later run in your shell
-
+You can easily test your API endpoints by using `restree run`.
 
 **Example:**
 
 ```sh
-restree build users/get.http | http2curl | bash
+restree run users/get.http
 ```
 
 ## Simple Guide
