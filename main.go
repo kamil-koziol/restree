@@ -22,6 +22,10 @@ var subcommands = map[string]Subcommand{
 		Run:         cmd.Init,
 		Description: "Simple restree starter",
 	},
+	"run": {
+		Run:         cmd.Run,
+		Description: "Run http file",
+	},
 }
 
 func main() {
