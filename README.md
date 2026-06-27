@@ -32,7 +32,7 @@ You can install [restree-git](https://aur.archlinux.org/packages/restree-git) fr
 Alternatively, you can install the `latest` version of restree directly using Go:
 
 ```sh
-go install https://github.com/kamil-koziol/restree@latest
+go install github.com/kamil-koziol/restree@latest
 ```
 
 ## Use case
